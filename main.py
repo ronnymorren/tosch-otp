@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import hmac
 import os
 import secrets
 import string
@@ -180,15 +181,21 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 BASE = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
-jinja_env = Environment(loader=FileSystemLoader(str(BASE / "templates")), cache_size=0)
+jinja_env = Environment(
+    loader=FileSystemLoader(str(BASE / "templates")),
+    autoescape=True,   # 🔒 Fix 1: voorkomt XSS in alle templates
+    cache_size=0,
+)
 templates = Jinja2Templates(env=jinja_env)
 
 
 # ── Hulpfunctie: IP ophalen ───────────────────────────────────────────────────
 
 def get_ip(request: Request) -> str:
+    # 🔒 Fix 5: gebruik het LAATSTE IP in X-Forwarded-For
+    # Vercel voegt het echte client-IP altijd als laatste toe — niet het eerste (aanvaller-controleerbaar)
     forwarded = request.headers.get("x-forwarded-for", "")
-    return forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+    return forwarded.split(",")[-1].strip() if forwarded else (request.client.host if request.client else "unknown")
 
 
 # ── Pagina's ──────────────────────────────────────────────────────────────────
@@ -252,7 +259,7 @@ async def create_secret(request: Request):
     expire_at    = (datetime.now() + timedelta(hours=expire_hours)).isoformat() \
                    if expire_hours > 0 else None
 
-    views_raw  = int(data.get("views", 5))
+    views_raw  = max(0, int(data.get("views", 5)))   # 🔒 Fix 2: negatieve waarden → onbeperkt (zelfde als 0)
     views_left = views_raw if views_raw > 0 else None
 
     one_step     = 1 if data.get("one_step")     else 0
@@ -330,10 +337,10 @@ async def reveal_secret(token: str, request: Request):
             # Nieuw formaat: PBKDF2 met salt
             invoer_hash = hash_passphrase(passphrase_input, salt)
         else:
-            # Oud formaat: gewone SHA-256 (backwards compat)
+            # 🔒 Fix 4a: oud formaat — plain SHA-256 (backwards compat voor bestaande records)
             invoer_hash = hashlib.sha256(passphrase_input.encode()).hexdigest()
 
-        if invoer_hash != row["passphrase"]:
+        if not hmac.compare_digest(invoer_hash, row["passphrase"]):  # 🔒 Fix 3: timing-safe vergelijking
             pogingen = (row.get("failed_attempts") or 0) + 1
             if pogingen >= 5:
                 locked = (datetime.now() + timedelta(minutes=15)).isoformat()
@@ -351,6 +358,18 @@ async def reveal_secret(token: str, request: Request):
             conn.commit()
             conn.close()
             raise HTTPException(403, "Onjuiste wachtwoordzin")
+
+    # 🔒 Fix 4b: migreer legacy SHA-256 hash naar PBKDF2 bij succesvolle reveal
+    if row["passphrase"] and not (row.get("passphrase_salt") or ""):
+        try:
+            nieuw_s = nieuw_salt()
+            nieuw_h = hash_passphrase(passphrase_input, nieuw_s)
+            cur.execute(
+                "UPDATE otp_secrets SET passphrase=%s, passphrase_salt=%s WHERE token=%s",
+                (nieuw_h, nieuw_s, token),
+            )
+        except Exception:
+            pass  # migratie mislukt — geen blokkade, volgende keer opnieuw
 
     # Ontsleutelen
     try:
