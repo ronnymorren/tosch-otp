@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link verlopen – Tosch OTP</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/static/tosch-logo-tagline.png" alt="Tosch" class="nav-logo">
+      <span class="nav-title">OTP</span>
+    </a>
+    <a href="/" class="btn btn-ghost btn-sm">Nieuwe link →</a>
+  </nav>
+
+  <div class="container" style="max-width:560px;text-align:center;padding-top:4rem">
+    <div style="font-size:3.5rem;margin-bottom:1rem">🔐</div>
+    <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:.75rem">Link niet beschikbaar</h1>
+    <p style="color:var(--gray-500);margin-bottom:2rem;font-size:.9375rem;max-width:380px;margin-left:auto;margin-right:auto">
+      {{ reden }}
+    </p>
+    <a href="/" class="btn btn-primary">Nieuw geheim aanmaken →</a>
+  </div>
+
+</body>
+</html>

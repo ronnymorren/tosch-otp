@@ -1,0 +1,264 @@
+/* ── Avenir font ─────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Avenir';
+  src: url('/static/fonts/Avenir.ttc') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+/* ── Reset & tokens ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --orange:      #FF6F00;
+  --orange-d:    #e06200;
+  --orange-l:    #fff3e0;
+  --orange-ring: #ffe0b2;
+  --green:       #16a34a;
+  --green-bg:    #f0fdf4;
+  --red:         #dc2626;
+  --red-bg:      #fef2f2;
+  --gray-50:     #f9fafb;
+  --gray-100:    #f3f4f6;
+  --gray-200:    #e5e7eb;
+  --gray-400:    #9ca3af;
+  --gray-500:    #6b7280;
+  --gray-700:    #374151;
+  --gray-900:    #111827;
+  --radius:      14px;
+  --shadow:      0 1px 3px rgba(0,0,0,.07), 0 4px 20px rgba(0,0,0,.06);
+}
+
+body {
+  font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--gray-100);
+  color: var(--gray-900);
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+/* ── Navbar ──────────────────────────────────────────────────────────────── */
+.navbar {
+  background: #fff;
+  border-bottom: 3px solid var(--orange);
+  padding: .75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(255,111,0,.08);
+}
+.nav-brand { display: flex; align-items: center; gap: .6rem; text-decoration: none; }
+.nav-logo  { height: 44px; width: auto; }
+.nav-title { font-size: 1.1rem; font-weight: 800; color: var(--orange); }
+.nav-sub   { font-size: .8125rem; color: var(--gray-400); }
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: 2.5rem 1.25rem 1.5rem;
+}
+.hero-titel { font-size: 1.75rem; font-weight: 800; margin-bottom: .4rem; }
+.hero-sub   { color: var(--gray-500); font-size: .9375rem; }
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.75rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Secret textarea (aanmaken) ──────────────────────────────────────────── */
+.secret-wrap   { margin-bottom: 1.25rem; }
+.secret-input  {
+  width: 100%; min-height: 120px; max-height: 400px;
+  padding: 1rem; border: 1.5px solid var(--gray-200);
+  border-radius: 10px; font-size: .9375rem;
+  font-family: 'Avenir', sans-serif;
+  resize: none; line-height: 1.6;
+  transition: border-color .15s;
+}
+.secret-input:focus {
+  outline: none; border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-ring);
+}
+.char-count { font-size: .78rem; color: var(--gray-400); text-align: right; margin-top: .35rem; }
+
+/* ── Opties ──────────────────────────────────────────────────────────────── */
+.opties-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-bottom: 1.25rem;
+}
+.optie-label {
+  display: block; font-size: .8rem; font-weight: 700;
+  color: var(--gray-500); text-transform: uppercase;
+  letter-spacing: .05em; margin-bottom: .375rem;
+}
+.optie-select {
+  width: 100%; padding: .65rem .9rem;
+  border: 1.5px solid var(--gray-200); border-radius: 9px;
+  font-size: .9375rem; background: #fff;
+  font-family: inherit; cursor: pointer;
+  transition: border-color .15s;
+}
+.optie-select:focus {
+  outline: none; border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-ring);
+}
+
+/* ── Toggles ─────────────────────────────────────────────────────────────── */
+.toggles-wrap {
+  border: 1.5px solid var(--gray-200); border-radius: 10px;
+  margin-bottom: 1.25rem; overflow: hidden;
+}
+.toggle-rij {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .9rem 1rem; cursor: pointer;
+  transition: background .15s; gap: 1rem;
+}
+.toggle-rij:not(:last-child) { border-bottom: 1px solid var(--gray-100); }
+.toggle-rij:hover { background: var(--gray-50); }
+.toggle-info  { flex: 1; }
+.toggle-naam  { display: block; font-size: .9375rem; font-weight: 600; }
+.toggle-beschr {
+  display: block; font-size: .8125rem;
+  color: var(--gray-500); margin-top: .1rem;
+}
+
+/* Toggle switch */
+.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-knop {
+  position: absolute; inset: 0;
+  background: var(--gray-200); border-radius: 999px;
+  cursor: pointer; transition: background .2s;
+}
+.toggle-knop::after {
+  content: ''; position: absolute;
+  width: 18px; height: 18px; top: 3px; left: 3px;
+  background: #fff; border-radius: 50%;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle-switch input:checked + .toggle-knop            { background: var(--orange); }
+.toggle-switch input:checked + .toggle-knop::after     { transform: translateX(20px); }
+
+/* ── Wachtwoordzin ───────────────────────────────────────────────────────── */
+.passphrase-wrap {
+  margin-bottom: 1.25rem; padding: 1rem;
+  background: var(--orange-l); border-radius: 10px;
+  border: 1.5px solid var(--orange-ring);
+}
+.passphrase-hint { font-size: .8125rem; color: var(--orange-d); margin-top: .5rem; }
+
+/* ── Wachtwoord generator ────────────────────────────────────────────────── */
+.gen-wrap { margin-bottom: 1.25rem; }
+.generator-panel {
+  margin-top: .75rem; padding: 1rem;
+  background: var(--gray-50); border-radius: 10px;
+  border: 1.5px solid var(--gray-200);
+}
+.gen-opties {
+  display: flex; flex-wrap: wrap;
+  gap: .75rem; align-items: center; margin-bottom: .75rem;
+}
+.gen-optie label  { font-size: .875rem; color: var(--gray-700); font-weight: 600; }
+.gen-optie input[type=range] {
+  width: 120px; accent-color: var(--orange); display: block; margin-top: .25rem;
+}
+.gen-check {
+  display: flex; align-items: center; gap: .35rem;
+  font-size: .875rem; color: var(--gray-700); cursor: pointer;
+}
+.gen-check input { accent-color: var(--orange); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .65rem 1.25rem; border-radius: 9px;
+  font-size: .9375rem; font-weight: 600; cursor: pointer;
+  border: none; transition: all .15s; text-decoration: none;
+  font-family: 'Avenir', sans-serif;
+}
+.btn-primary       { background: var(--orange); color: #fff; }
+.btn-primary:hover { background: var(--orange-d); }
+.btn-ghost         { background: transparent; color: var(--gray-700); border: 1.5px solid var(--gray-200); }
+.btn-ghost:hover   { background: var(--gray-100); }
+.btn-full { width: 100%; }
+.btn-lg   { padding: .9rem 1.5rem; font-size: 1rem; }
+.btn-sm   { font-size: .8125rem; padding: .375rem .875rem; }
+
+/* ── Alert ───────────────────────────────────────────────────────────────── */
+.alert { padding: .75rem 1rem; border-radius: 9px; font-size: .875rem; margin-bottom: 1rem; }
+.alert-error   { background: var(--red-bg);   color: var(--red);   }
+.alert-success { background: var(--green-bg); color: var(--green); }
+
+/* ── Resultaat ───────────────────────────────────────────────────────────── */
+.resultaat-icon  { font-size: 3rem; margin-bottom: .75rem; text-align: center; }
+.resultaat-titel { font-size: 1.4rem; font-weight: 800; text-align: center; margin-bottom: .4rem; }
+.resultaat-sub   { color: var(--gray-500); text-align: center; margin-bottom: 1.5rem; font-size: .9375rem; }
+.link-box {
+  display: flex; align-items: center; gap: .75rem;
+  background: var(--gray-50); border: 1.5px solid var(--gray-200);
+  border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1.25rem;
+}
+.link-tekst {
+  flex: 1; font-size: .875rem; color: var(--gray-700);
+  word-break: break-all; font-family: monospace;
+}
+
+/* ── Secret display (onthullenpagina) ────────────────────────────────────── */
+.inhoud-header {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; margin-bottom: 1rem; gap: 1rem;
+}
+.badge-verwijderd {
+  background: var(--green-bg); color: var(--green);
+  font-size: .75rem; font-weight: 700;
+  padding: .25rem .75rem; border-radius: 999px; white-space: nowrap;
+}
+.secret-display {
+  width: 100%; min-height: 80px; max-height: 400px;
+  padding: 1rem; background: var(--gray-900); color: #f9fafb;
+  border: none; border-radius: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem; line-height: 1.6; resize: none;
+}
+.inhoud-acties { display: flex; gap: .75rem; flex-wrap: wrap; }
+.waarschuwing-box {
+  margin-top: 1.25rem; padding: .85rem 1rem;
+  background: #fffbeb; border: 1.5px solid #fde68a;
+  border-radius: 10px; font-size: .8125rem; color: #92400e;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+input[type=text], input[type=password], input[type=email], input[type=number] {
+  width: 100%; padding: .65rem .9rem;
+  border: 1.5px solid var(--gray-200); border-radius: 9px;
+  font-size: .9375rem; background: #fff;
+  transition: border-color .15s; font-family: inherit;
+}
+input:focus {
+  outline: none; border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-ring);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .opties-grid { grid-template-columns: 1fr; }
+  .navbar      { padding: .75rem 1rem; }
+  .nav-sub     { display: none; }
+  .hero        { padding: 1.5rem 1rem 1rem; }
+  .hero-titel  { font-size: 1.4rem; }
+  .link-box    { flex-direction: column; align-items: stretch; }
+  .card        { padding: 1.25rem; }
+}

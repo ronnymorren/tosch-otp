@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tosch OTP — Veilig wachtwoord delen</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/static/tosch-logo-tagline.png" alt="Tosch" class="nav-logo">
+      <span class="nav-title">OTP</span>
+    </a>
+    <span class="nav-sub">Eenmalig wachtwoord delen</span>
+  </nav>
+
+  <div class="hero">
+    <h1 class="hero-titel">Deel veilig een wachtwoord</h1>
+    <p class="hero-sub">Versleuteld · Eenmalig · Automatisch verwijderd</p>
+  </div>
+
+  <div class="container">
+
+    <!-- ── Aanmaken card ───────────────────────────────────────────────────── -->
+    <div class="card" id="aanmaakCard">
+
+      <!-- Textarea -->
+      <div class="secret-wrap">
+        <textarea id="secretText" class="secret-input"
+                  placeholder="Plak hier je wachtwoord, code of gevoelige tekst..."
+                  maxlength="1048576" rows="5"></textarea>
+        <div class="char-count"><span id="charCount">0</span> / 1.048.576 tekens</div>
+      </div>
+
+      <!-- Opties -->
+      <div class="opties-grid">
+        <div class="optie-groep">
+          <label class="optie-label">Vervalt na</label>
+          <select id="expireHours" class="optie-select">
+            <option value="1">1 uur</option>
+            <option value="24">1 dag</option>
+            <option value="72">3 dagen</option>
+            <option value="168" selected>7 dagen</option>
+            <option value="336">14 dagen</option>
+            <option value="720">30 dagen</option>
+            <option value="0">Nooit</option>
+          </select>
+        </div>
+        <div class="optie-groep">
+          <label class="optie-label">Max. weergaven</label>
+          <select id="maxViews" class="optie-select">
+            <option value="1">1 keer</option>
+            <option value="2">2 keer</option>
+            <option value="5" selected>5 keer</option>
+            <option value="10">10 keer</option>
+            <option value="25">25 keer</option>
+            <option value="0">Onbeperkt</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Toggles -->
+      <div class="toggles-wrap">
+        <label class="toggle-rij">
+          <div class="toggle-info">
+            <span class="toggle-naam">Ophaalstap</span>
+            <span class="toggle-beschr">Ontvanger moet klikken voordat de inhoud zichtbaar is</span>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="oneStep" checked>
+            <span class="toggle-knop"></span>
+          </div>
+        </label>
+        <label class="toggle-rij">
+          <div class="toggle-info">
+            <span class="toggle-naam">Verwijdering toestaan</span>
+            <span class="toggle-beschr">Ontvanger kan de link zelf verwijderen na ontvangst</span>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="allowDelete">
+            <span class="toggle-knop"></span>
+          </div>
+        </label>
+        <label class="toggle-rij">
+          <div class="toggle-info">
+            <span class="toggle-naam">Wachtwoordzin</span>
+            <span class="toggle-beschr">Extra beveiliging: ontvanger heeft een code nodig om te openen</span>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="usePassphrase" onchange="togglePassphrase()">
+            <span class="toggle-knop"></span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Wachtwoordzin input -->
+      <div id="passphraseWrap" style="display:none" class="passphrase-wrap">
+        <input id="passphraseInput" type="text" placeholder="Vul een wachtwoordzin in...">
+        <p class="passphrase-hint">⚠️ Deel deze wachtwoordzin apart met de ontvanger — bijv. via telefoon of chat.</p>
+      </div>
+
+      <!-- Wachtwoord generator -->
+      <div class="gen-wrap">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="toggleGenerator()">
+          🔑 Willekeurig wachtwoord genereren
+        </button>
+        <div id="generatorPanel" style="display:none" class="generator-panel">
+          <div class="gen-opties">
+            <div class="gen-optie">
+              <label>Lengte: <strong id="lengteVal">20</strong></label>
+              <input type="range" id="lengteSlider" min="8" max="64" value="20"
+                     oninput="document.getElementById('lengteVal').textContent=this.value">
+            </div>
+            <label class="gen-check"><input type="checkbox" id="genUpper"   checked> Hoofdletters</label>
+            <label class="gen-check"><input type="checkbox" id="genNumbers" checked> Cijfers</label>
+            <label class="gen-check"><input type="checkbox" id="genSymbols">         Symbolen</label>
+          </div>
+          <button class="btn btn-primary btn-sm" type="button" onclick="genereerWachtwoord()">
+            Genereer en gebruik
+          </button>
+        </div>
+      </div>
+
+      <!-- Fout -->
+      <div id="aanmaakError" class="alert alert-error" style="display:none"></div>
+
+      <!-- Hoofdknop -->
+      <button class="btn btn-primary btn-full btn-lg" id="genLinkBtn" onclick="maakLink()">
+        🔒 Genereer beveiligde link
+      </button>
+    </div>
+
+    <!-- ── Resultaat card ──────────────────────────────────────────────────── -->
+    <div class="card" id="resultaatCard" style="display:none">
+      <div class="resultaat-icon">🔗</div>
+      <h2 class="resultaat-titel">Link aangemaakt!</h2>
+      <p class="resultaat-sub" id="resultaatSub"></p>
+
+      <div class="link-box">
+        <span id="gegenereerdeLink" class="link-tekst"></span>
+        <button class="btn btn-primary btn-sm" id="kopieerBtn" onclick="kopieerLink()">Kopiëren</button>
+      </div>
+
+      <button class="btn btn-ghost btn-full" onclick="nieuwLink()">+ Nieuwe link aanmaken</button>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Char counter + auto-resize ─────────────────────────────────────────
+    const textarea = document.getElementById('secretText');
+    textarea.addEventListener('input', function () {
+      document.getElementById('charCount').textContent =
+        this.value.length.toLocaleString('nl-NL');
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 400) + 'px';
+    });
+
+    function togglePassphrase() {
+      const on = document.getElementById('usePassphrase').checked;
+      document.getElementById('passphraseWrap').style.display = on ? 'block' : 'none';
+      if (on) document.getElementById('passphraseInput').focus();
+    }
+
+    let generatorOpen = false;
+    function toggleGenerator() {
+      generatorOpen = !generatorOpen;
+      document.getElementById('generatorPanel').style.display =
+        generatorOpen ? 'block' : 'none';
+    }
+
+    async function genereerWachtwoord() {
+      const length  = document.getElementById('lengteSlider').value;
+      const upper   = document.getElementById('genUpper').checked;
+      const numbers = document.getElementById('genNumbers').checked;
+      const symbols = document.getElementById('genSymbols').checked;
+      const res  = await fetch(
+        `/api/password/generate?length=${length}&upper=${upper}&numbers=${numbers}&symbols=${symbols}`
+      );
+      const data = await res.json();
+      textarea.value = data.password;
+      textarea.dispatchEvent(new Event('input'));
+    }
+
+    async function maakLink() {
+      const text  = textarea.value.trim();
+      const errEl = document.getElementById('aanmaakError');
+      errEl.style.display = 'none';
+
+      if (!text) {
+        errEl.textContent = 'Vul eerst een wachtwoord of tekst in.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('genLinkBtn');
+      btn.textContent = 'Bezig...'; btn.disabled = true;
+
+      try {
+        const body = {
+          text,
+          expire_hours: parseInt(document.getElementById('expireHours').value),
+          views:        parseInt(document.getElementById('maxViews').value),
+          one_step:     document.getElementById('oneStep').checked,
+          allow_delete: document.getElementById('allowDelete').checked,
+          passphrase:   document.getElementById('usePassphrase').checked
+                        ? document.getElementById('passphraseInput').value.trim()
+                        : '',
+        };
+
+        const res = await fetch('/api/secret/create', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          errEl.textContent = err.detail || 'Aanmaken mislukt.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        const data = await res.json();
+        const link = `${window.location.origin}/s/${data.token}`;
+
+        const expireEl = document.getElementById('expireHours');
+        const viewsEl  = document.getElementById('maxViews');
+        const expireTxt = expireEl.options[expireEl.selectedIndex].text.toLowerCase();
+        const viewsTxt  = viewsEl.options[viewsEl.selectedIndex].text.toLowerCase();
+        document.getElementById('resultaatSub').textContent =
+          `Vervalt na ${expireTxt} of ${viewsTxt}.`;
+
+        document.getElementById('gegenereerdeLink').textContent = link;
+        document.getElementById('aanmaakCard').style.display    = 'none';
+        document.getElementById('resultaatCard').style.display  = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      } catch {
+        errEl.textContent = 'Verbindingsfout. Probeer opnieuw.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = '🔒 Genereer beveiligde link'; btn.disabled = false;
+      }
+    }
+
+    function kopieerLink() {
+      navigator.clipboard.writeText(
+        document.getElementById('gegenereerdeLink').textContent
+      );
+      const btn = document.getElementById('kopieerBtn');
+      btn.textContent = '✓ Gekopieerd!';
+      setTimeout(() => btn.textContent = 'Kopiëren', 2000);
+    }
+
+    function nieuwLink() {
+      textarea.value = '';
+      textarea.style.height = '';
+      document.getElementById('charCount').textContent = '0';
+      document.getElementById('aanmaakError').style.display  = 'none';
+      document.getElementById('resultaatCard').style.display = 'none';
+      document.getElementById('aanmaakCard').style.display   = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
