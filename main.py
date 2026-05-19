@@ -427,9 +427,10 @@ async def delete_secret(token: str, request: Request):
 @limiter.limit("60/minute")
 async def generate_password(request: Request, length: int = 20, upper: bool = True,
                              numbers: bool = True, symbols: bool = False):
-    chars  = string.ascii_lowercase
-    if upper:   chars += string.ascii_uppercase
-    if numbers: chars += string.digits
+    VERWARREND = "O0il"   # visueel verwarrend — altijd weglaten
+    chars  = "".join(c for c in string.ascii_lowercase if c not in VERWARREND)
+    if upper:   chars += "".join(c for c in string.ascii_uppercase if c not in VERWARREND)
+    if numbers: chars += "".join(c for c in string.digits          if c not in VERWARREND)
     if symbols: chars += "!@#$%^&*"
     length   = max(8, min(64, length))
     password = "".join(secrets.choice(chars) for _ in range(length))
