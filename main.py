@@ -117,14 +117,23 @@ def init_db():
     conn.close()
 
 def log_audit(conn, cur, token: str, event: str, ip: str):
-    """Schrijf een audit-regel (valt stil bij fout — nooit blokkeren)."""
+    """Schrijf een audit-regel (valt stil bij fout — nooit blokkeren).
+
+    Savepoint: een mislukte INSERT breekt anders de hele transactie af, waardoor
+    de commit erna ook de weergave-verlaging zou terugdraaien.
+    """
     try:
+        cur.execute("SAVEPOINT audit")
         cur.execute(
             "INSERT INTO otp_audit (token, event, ip, created_at) VALUES (%s, %s, %s, %s)",
             (token, event, ip, datetime.now().isoformat()),
         )
+        cur.execute("RELEASE SAVEPOINT audit")
     except Exception:
-        pass
+        try:
+            cur.execute("ROLLBACK TO SAVEPOINT audit")
+        except Exception:
+            pass
 
 try:
     init_db()
@@ -297,15 +306,23 @@ async def create_secret(request: Request):
 async def reveal_secret(token: str, request: Request):
     data             = await request.json()
     passphrase_input = data.get("passphrase", "").strip()
-    ip               = get_ip(request)
 
     conn = get_conn()
-    cur  = get_cur(conn)
-    cur.execute("SELECT * FROM otp_secrets WHERE token = %s", (token,))
+    try:
+        return _reveal(conn, token, passphrase_input, get_ip(request))
+    finally:
+        conn.close()   # niet-gecommit werk wordt teruggedraaid, rijlock valt vrij
+
+
+def _reveal(conn, token: str, passphrase_input: str, ip: str):
+    cur = get_cur(conn)
+
+    # 🔒 FOR UPDATE: rijlock tot commit/close. Gelijktijdige reveals op dezelfde link
+    # wachten hier op elkaar, zodat weergaven en mislukte pogingen nooit dubbel tellen.
+    cur.execute("SELECT * FROM otp_secrets WHERE token = %s FOR UPDATE", (token,))
     row = cur.fetchone()
 
     if not row:
-        conn.close()
         raise HTTPException(404, "Link bestaat niet of is verlopen")
 
     # Vervaldatum
@@ -313,7 +330,6 @@ async def reveal_secret(token: str, request: Request):
         log_audit(conn, cur, token, "expired", ip)
         cur.execute("DELETE FROM otp_secrets WHERE token = %s", (token,))
         conn.commit()
-        conn.close()
         raise HTTPException(410, "Link is verlopen")
 
     # Max weergaven
@@ -321,13 +337,11 @@ async def reveal_secret(token: str, request: Request):
         log_audit(conn, cur, token, "max_views_reached", ip)
         cur.execute("DELETE FROM otp_secrets WHERE token = %s", (token,))
         conn.commit()
-        conn.close()
         raise HTTPException(410, "Link is al het maximale aantal keren bekeken")
 
     # Passphrase lockout controleren
     if row.get("locked_until"):
         if datetime.now() < datetime.fromisoformat(row["locked_until"]):
-            conn.close()
             raise HTTPException(429, "Te veel mislukte pogingen. Probeer het over 15 minuten opnieuw.")
 
     # Passphrase validatie
@@ -341,22 +355,22 @@ async def reveal_secret(token: str, request: Request):
             invoer_hash = hashlib.sha256(passphrase_input.encode()).hexdigest()
 
         if not hmac.compare_digest(invoer_hash, row["passphrase"]):  # 🔒 Fix 3: timing-safe vergelijking
-            pogingen = (row.get("failed_attempts") or 0) + 1
+            # Teller in SQL ophogen (niet lezen-en-terugschrijven): telt altijd exact
+            cur.execute("""
+                UPDATE otp_secrets SET failed_attempts = COALESCE(failed_attempts, 0) + 1
+                WHERE token = %s RETURNING failed_attempts
+            """, (token,))
+            pogingen = cur.fetchone()["failed_attempts"]
             if pogingen >= 5:
                 locked = (datetime.now() + timedelta(minutes=15)).isoformat()
                 cur.execute(
-                    "UPDATE otp_secrets SET failed_attempts=%s, locked_until=%s WHERE token=%s",
-                    (pogingen, locked, token),
+                    "UPDATE otp_secrets SET locked_until=%s WHERE token=%s",
+                    (locked, token),
                 )
                 log_audit(conn, cur, token, "locked_out", ip)
             else:
-                cur.execute(
-                    "UPDATE otp_secrets SET failed_attempts=%s WHERE token=%s",
-                    (pogingen, token),
-                )
                 log_audit(conn, cur, token, "failed_passphrase", ip)
             conn.commit()
-            conn.close()
             raise HTTPException(403, "Onjuiste wachtwoordzin")
 
     # 🔒 Fix 4b: migreer legacy SHA-256 hash naar PBKDF2 bij succesvolle reveal
@@ -371,29 +385,36 @@ async def reveal_secret(token: str, request: Request):
         except Exception:
             pass  # migratie mislukt — geen blokkade, volgende keer opnieuw
 
-    # Ontsleutelen
-    try:
-        plaintext = ontsleutel(row["ciphertext"], token)
-    except Exception:
-        conn.close()
-        raise HTTPException(500, "Ontsleuteling mislukt")
-
-    # ── Atomair weergaven verlagen / verwijderen ──────────────────────────────
+    # ── Weergave eerst claimen, dan pas ontsleutelen ──────────────────────────
+    # Geen rij terug = een ander verzoek had de laatste weergave al: niets tonen.
+    resterend = None   # None = onbeperkt
     if row["views_left"] is not None:
-        # Atomaire UPDATE — voorkomt race condition bij gelijktijdige verzoeken
         cur.execute("""
             UPDATE otp_secrets SET views_left = views_left - 1
             WHERE token = %s AND views_left > 0
+            RETURNING views_left
         """, (token,))
-        new_views = row["views_left"] - 1
-        if new_views <= 0:
-            cur.execute("DELETE FROM otp_secrets WHERE token = %s", (token,))
+        geclaimd = cur.fetchone()
+        if not geclaimd:
+            raise HTTPException(410, "Link is al het maximale aantal keren bekeken")
+        resterend = geclaimd["views_left"]
+
+    # Ontsleutelen (mislukt = geen commit, dus de claim hierboven vervalt)
+    try:
+        plaintext = ontsleutel(row["ciphertext"], token)
+    except Exception:
+        raise HTTPException(500, "Ontsleuteling mislukt")
+
+    if resterend == 0:
+        cur.execute("DELETE FROM otp_secrets WHERE token = %s", (token,))
 
     log_audit(conn, cur, token, "revealed", ip)
     conn.commit()
-    conn.close()
 
-    return JSONResponse({"plaintext": plaintext})
+    return JSONResponse(
+        {"plaintext": plaintext, "views_left": resterend},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 # ── API: geheim verwijderen ───────────────────────────────────────────────────
