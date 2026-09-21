@@ -253,28 +253,45 @@ async def secret_page(request: Request, token: str):
 
 # ── API: geheim aanmaken ──────────────────────────────────────────────────────
 
+# Moet gelijk lopen met de keuzelijsten in templates/home.html
+TOEGESTANE_UREN      = (1, 24, 72, 168, 336, 720)   # 1 uur t/m 30 dagen
+TOEGESTANE_WEERGAVEN = (1, 2, 5, 10, 25)
+
 @app.post("/api/secret/create")
 @limiter.limit("20/minute")          # max 20 aanmaken per IP per minuut
 async def create_secret(request: Request):
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Ongeldige aanvraag")
 
-    text = data.get("text", "").strip()
-    if not text:
+    text = data.get("text", "")
+    if not isinstance(text, str) or not text.strip():
         raise HTTPException(400, "Geen tekst opgegeven")
+    text = text.strip()
     if len(text) > 1_048_576:
         raise HTTPException(400, "Tekst te lang (max 1 MB)")
 
-    expire_hours = int(data.get("expire_hours", 168))
-    expire_at    = (datetime.now() + timedelta(hours=expire_hours)).isoformat() \
-                   if expire_hours > 0 else None
-
-    views_raw  = max(0, int(data.get("views", 5)))   # 🔒 Fix 2: negatieve waarden → onbeperkt (zelfde als 0)
-    views_left = views_raw if views_raw > 0 else None
+    # 🔒 Alleen de waarden uit de keuzelijsten. "Nooit verlopen" en "Onbeperkt" bestaan
+    # niet meer: elk nieuw geheim verloopt en heeft een maximum aantal weergaven.
+    # Bestaande records met expire_at/views_left = NULL blijven gewoon werken.
+    expire_hours = data.get("expire_hours", 168)
+    views_left   = data.get("views", 5)
+    if type(expire_hours) is not int or expire_hours not in TOEGESTANE_UREN:
+        raise HTTPException(400, "Ongeldige vervaltijd. Ververs de pagina en probeer opnieuw.")
+    if type(views_left) is not int or views_left not in TOEGESTANE_WEERGAVEN:
+        raise HTTPException(400, "Ongeldig aantal weergaven. Ververs de pagina en probeer opnieuw.")
+    expire_at = (datetime.now() + timedelta(hours=expire_hours)).isoformat()
 
     one_step     = 1 if data.get("one_step")     else 0
     allow_delete = 1 if data.get("allow_delete") else 0
 
-    passphrase_raw  = data.get("passphrase", "").strip()
+    passphrase_raw = data.get("passphrase") or ""
+    if not isinstance(passphrase_raw, str):
+        raise HTTPException(400, "Ongeldige wachtwoordzin")
+    passphrase_raw  = passphrase_raw.strip()
     passphrase_salt = nieuw_salt() if passphrase_raw else None
     passphrase_hash = hash_passphrase(passphrase_raw, passphrase_salt) if passphrase_raw else None
 
